@@ -68,7 +68,28 @@ export async function GET(
   });
   if (!experiment) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
-  const rows = experiment.runs.map((run) => ({
+  type RunWithRelations = {
+    id: string;
+    temperature: number;
+    topP: number;
+    maxTokens: number;
+    response: {
+      latencyMs: number | null;
+      tokens: number | null;
+      text: string | null;
+      metrics: {
+        completeness: number;
+        coherence: number;
+        repetition: number;
+        readability: number;
+        lengthFit: number;
+        structure: number;
+        composite: number;
+      } | null;
+    } | null;
+  };
+
+  const rows = experiment.runs.map((run: RunWithRelations) => ({
     runId: run.id,
     temperature: run.temperature,
     top_p: run.topP,
