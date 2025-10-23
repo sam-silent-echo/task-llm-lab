@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
@@ -13,6 +13,26 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  ResponsiveContainer,
+  ScatterChart,
+  Scatter,
+  XAxis,
+  YAxis,
+  ZAxis,
+  CartesianGrid,
+  Tooltip as RTooltip,
+  Legend,
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  RadarChart,
+  Radar,
+  PolarGrid,
+  PolarAngleAxis,
+  PolarRadiusAxis,
+} from "recharts";
 
 async function runExperiment(input: any) {
   const res = await fetch("/api/run", {
@@ -36,6 +56,62 @@ export default function Page() {
   const [results, setResults] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [experimentId, setExperimentId] = useState<string | null>(null);
+
+  const runs = useMemo(() => {
+    const arr: Array<{
+      temperature: number;
+      top_p: number;
+      max_tokens: number;
+      latencyMs?: number;
+      metrics?: {
+        completeness: number;
+        coherence: number;
+        repetition: number;
+        readability: number;
+        lengthFit: number;
+        structure: number;
+        composite: number;
+      } | null;
+      error?: string;
+    }> = results?.results ?? [];
+    return arr.filter((r) => !r.error);
+  }, [results]);
+
+  const bestRun = useMemo(() => {
+    return runs
+      .filter((r) => r.metrics?.composite != null)
+      .slice()
+      .sort((a, b) => (b.metrics!.composite - a.metrics!.composite))[0];
+  }, [runs]);
+
+  const linesByTopP = useMemo(() => {
+    const map = new Map<number, { temperature: number; composite: number }[]>();
+    runs.forEach((r) => {
+      if (r.metrics?.composite == null) return;
+      const arr = map.get(r.top_p) ?? [];
+      arr.push({ temperature: r.temperature, composite: r.metrics.composite });
+      map.set(r.top_p, arr);
+    });
+    const sorted = Array.from(map.entries()).map(([p, arr]) => ({
+      top_p: p,
+      points: arr.sort((a, b) => a.temperature - b.temperature),
+    }));
+    return sorted.sort((a, b) => a.top_p - b.top_p);
+  }, [runs]);
+
+  const radarData = useMemo(() => {
+    if (!bestRun?.metrics) return [] as { metric: string; value: number }[];
+    const m = bestRun.metrics;
+    return [
+      { metric: "completeness", value: m.completeness },
+      { metric: "coherence", value: m.coherence },
+      { metric: "repetition", value: 1 - m.repetition },
+      { metric: "readability", value: m.readability },
+      { metric: "lengthFit", value: m.lengthFit },
+      { metric: "structure", value: m.structure },
+      { metric: "composite", value: m.composite },
+    ];
+  }, [bestRun]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -178,6 +254,85 @@ export default function Page() {
               </table>
             </CardContent>
           </Card>
+          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Composite vs Temperature (colored by Top_p, sized by Max Tokens)</CardTitle>
+              </CardHeader>
+              <CardContent style={{ height: 320 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <ScatterChart margin={{ top: 10, right: 20, left: 0, bottom: 10 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis type="number" dataKey="temperature" name="temperature" domain={["dataMin", "dataMax"]} />
+                    <YAxis type="number" dataKey={(d: any) => d.metrics?.composite ?? 0} name="composite" domain={[0, 1]} />
+                    <ZAxis type="number" dataKey="max_tokens" range={[60, 180]} />
+                    <RTooltip formatter={(v: any, n: any, p: any) => [typeof v === "number" ? v.toFixed?.(3) ?? v : v, n]} />
+                    <Legend />
+                    {Array.from(new Set(runs.map((r) => r.top_p)))
+                      .sort((a, b) => a - b)
+                      .map((p, idx) => (
+                        <Scatter key={p} name={`top_p=${p}`} data={runs.filter((r) => r.top_p === p)} fill={["#1f77b4","#ff7f0e","#2ca02c","#d62728","#9467bd"][idx % 5]} />
+                      ))}
+                  </ScatterChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Composite vs Temperature (lines per Top_p)</CardTitle>
+              </CardHeader>
+              <CardContent style={{ height: 320 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart margin={{ top: 10, right: 20, left: 0, bottom: 10 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="temperature" type="number" domain={["dataMin","dataMax"]} allowDecimals />
+                    <YAxis domain={[0,1]} />
+                    <RTooltip />
+                    <Legend />
+                    {linesByTopP.map((series, idx) => (
+                      <Line key={series.top_p} type="monotone" dataKey="composite" data={series.points} name={`top_p=${series.top_p}`} stroke={["#1f77b4","#ff7f0e","#2ca02c","#d62728","#9467bd"][idx % 5]} dot={false} />
+                    ))}
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Latency by Parameter Set</CardTitle>
+              </CardHeader>
+              <CardContent style={{ height: 320 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={runs.map((r, i) => ({ i, label: `T=${r.temperature}/p=${r.top_p}/m=${r.max_tokens}`.replace(/\.0+/g, ""), latency: r.latencyMs ?? 0 }))} margin={{ top: 10, right: 20, left: 0, bottom: 50 }}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="label" interval={0} angle={-35} textAnchor="end" height={70} />
+                    <YAxis />
+                    <RTooltip />
+                    <Bar dataKey="latency" fill="#8884d8" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Best Run Metrics Radar</CardTitle>
+              </CardHeader>
+              <CardContent style={{ height: 320 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <RadarChart data={radarData} cx="50%" cy="50%">
+                    <PolarGrid />
+                    <PolarAngleAxis dataKey="metric" />
+                    <PolarRadiusAxis domain={[0, 1]} />
+                    <Radar name="score" dataKey="value" stroke="#82ca9d" fill="#82ca9d" fillOpacity={0.4} />
+                    <Legend />
+                  </RadarChart>
+                </ResponsiveContainer>
+                {!bestRun && <div className="text-xs text-slate-500 mt-2">Run an experiment to populate charts.</div>}
+              </CardContent>
+            </Card>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {results.results.map((r: any, idx: number) => (
               <Card key={idx}>
