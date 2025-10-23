@@ -16,7 +16,7 @@ export async function callOpenAI({ prompt, temperature, top_p, max_tokens, model
   const baseDelay = 500; // ms
   const timeoutMs = 30000;
 
-  let lastError: any = null;
+  let lastError: unknown = null;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     const started = Date.now();
     const ctrl = new AbortController();
@@ -55,10 +55,10 @@ export async function callOpenAI({ prompt, temperature, top_p, max_tokens, model
       const text: string = json.choices?.[0]?.message?.content ?? "";
       const tokens: number = json.usage?.total_tokens ?? 0;
       return { text, tokens, latencyMs };
-    } catch (err: any) {
+    } catch (err: unknown) {
       clearTimeout(t);
       // Retry on abort (timeout) or network errors
-      const msg = String(err?.message || err);
+      const msg = err instanceof Error ? err.message : String(err);
       if (msg.includes("AbortError") || msg.includes("fetch failed") || msg.includes("network")) {
         lastError = err;
         const jitter = Math.random() * 200;
@@ -69,5 +69,7 @@ export async function callOpenAI({ prompt, temperature, top_p, max_tokens, model
       throw err;
     }
   }
-  throw lastError || new Error("OpenAI call failed after retries");
+  if (lastError instanceof Error) throw lastError;
+  throw new Error("OpenAI call failed after retries");
 }
+
