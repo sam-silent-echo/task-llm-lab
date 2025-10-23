@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 
+export const runtime = "nodejs";
+
 export async function GET() {
   const experiments = await prisma.experiment.findMany({
     orderBy: { createdAt: "desc" },

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db/prisma";
 
+export const runtime = "nodejs";
+
 function toCSV(rows: any[]): string {
   const headers = [
     "runId",
