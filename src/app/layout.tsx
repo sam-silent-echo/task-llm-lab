@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import Providers from "@/components/Providers";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -24,10 +25,21 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {children}
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased bg-slate-50 text-slate-900`}>
+        <Providers>
+          <header className="border-b bg-white/80 backdrop-blur supports-[backdrop-filter]:bg-white/60 sticky top-0 z-10">
+            <div className="mx-auto max-w-6xl px-6 h-14 flex items-center justify-between">
+              <div className="font-semibold tracking-tight">LLM Lab</div>
+              <nav className="text-sm text-slate-600 space-x-4">
+                <a href="/" className="hover:text-slate-900">Run</a>
+                <a href="/experiments" className="hover:text-slate-900">Experiments</a>
+              </nav>
+            </div>
+          </header>
+          <div className="mx-auto max-w-6xl px-6 py-6">
+            {children}
+          </div>
+        </Providers>
       </body>
     </html>
   );

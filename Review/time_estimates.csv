@@ -1,0 +1,15 @@
+Story,Task,Estimate min (hr),Estimate max (hr),Actual,Comment
+Planning,Define architecture,1.5,2.5,,Initial planning and metrics selection
+Setup,Scaffold Next.js app,1,2,,create-next-app, Tailwind
+Setup,Set up Prisma + SQLite,0.75,1.25,,Models for Experiment/Run/Response
+Backend,LLM provider abstraction + mock,1,2,,Swappable provider (OpenAI or mock)
+Backend,API routes (experiments/runs/export),2,3,,Create, run grid, compute metrics, export
+Metrics,Metrics implementation,2,4,,Completeness, coherence heuristic, repetition, readability, length-fit, structure
+Frontend,Frontend UI core,3,5,,Prompt/params form, results table/cards, charts
+Frontend,Comparison view,1.5,2.5,,Side-by-side diff and filters
+Frontend,Export/Import UI,0.75,1.5,,Download JSON/CSV and re-import
+UX,UX polish & accessibility,1,2,,Toasts, loading, empty states, keyboard nav
+Docs,Docs (README + arch),0.75,1.25,,Setup, architecture, metrics
+Deployment,Deploy (Vercel),0.5,1,,Project config and env vars
+Demo,Demo video,0.75,1.25,,5-10 min narrated walkthrough
+Buffer,Buffer & fixes,1,1.5,,Contingencies and bug fixes

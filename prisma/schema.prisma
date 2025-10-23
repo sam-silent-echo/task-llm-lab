@@ -1,0 +1,56 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Experiment {
+  id        String   @id @default(cuid())
+  name      String
+  prompt    String
+  paramGrid Json
+  createdAt DateTime @default(now())
+  runs      Run[]
+}
+
+model Run {
+  id           String     @id @default(cuid())
+  experimentId String
+  experiment   Experiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  temperature  Float
+  topP         Float
+  maxTokens    Int
+  provider     String
+  createdAt    DateTime   @default(now())
+  response     Response?
+}
+
+model Response {
+  id        String   @id @default(cuid())
+  runId     String   @unique
+  run       Run      @relation(fields: [runId], references: [id], onDelete: Cascade)
+  text      String
+  tokens    Int
+  latencyMs Int
+  metrics   Metrics?
+}
+
+model Metrics {
+  id           String   @id @default(cuid())
+  responseId   String   @unique
+  response     Response @relation(fields: [responseId], references: [id], onDelete: Cascade)
+  completeness Float
+  coherence    Float
+  repetition   Float
+  readability  Float
+  lengthFit    Float
+  structure    Float
+  composite    Float
+}
